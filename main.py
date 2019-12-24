@@ -4,121 +4,206 @@ from OpenGL.GLU import *
 from OpenGL.GLUT import *
 import sys
 from PIL import Image
-from math import sin,cos
-global globvars
+import numpy
 
-class Global_Variables:
-    def __init__(self):
-        self.w = 0
-        self.h = 0
-        self.floor_texture_id = None
-        self.car_texture_id = None
-        self.dist_x = 0
-        self.dist_y = 0
-        self.angle = 0
-        self.machine_coord_x = 0
-        self.machine_coord_y = 0
-        self.machine_angle = 0
-        self.cam_dist = 20
-        self.ang_hor = 0
-        self.ang_vert = -60
-        self.no_light = [0, 0, 0, 1]
-        self.light=[1, 1, 1, 0]
-        self.cam_x = 0
-        self.cam_y = 0
-        self.cam_z = 0
-        self.amb = [0.8, 0.8, 0.8]
-        self.dif=[0.2, 0.2, 0.2]
-        self.step = 1
+# Объявляем все глобальные переменные
+global floor_texture_id
+global xrot         # Величина вращения по оси x
+global yrot         # Величина вращения по оси y
+global ambient      # рассеянное освещение
+global greencolor   # Цвет елочных иголок
+global treecolor    # Цвет елочного стебля
+global lightpos     # Положение источника освещения
+global width,height
 
-globvars = Global_Variables()
+def load_shader_from_file(filename):
+    f = open(filename,"r")
+    return f.read()
 
+def create_shader(shader_type, filename):
+    global location_y
+    shader = glCreateShader(shader_type)
+    glShaderSource(shader, load_shader_from_file(filename))
+    glCompileShader(shader)
+    return shader
+
+def ReadTexture(filename):
+    # PIL can open BMP, EPS, FIG, IM, JPEG, MSP, PCX, PNG, PPM
+    # and other file types.  We convert into a texture using GL.
+    print('trying to open', filename)
+    try:
+        image = Image.open(filename)
+    except IOError as ex:
+        print('IOError: failed to open texture file')
+        message = "ERR"#template.format(type(ex).__name__, ex.args)
+        print(message)
+        return -1
+    print('opened file: size=', image.size, 'format=', image.format)
+    imageData = numpy.array(list(image.getdata()), numpy.uint8)
+
+    textureID = glGenTextures(1)
+    glPixelStorei(GL_UNPACK_ALIGNMENT, 4)
+    glBindTexture(GL_TEXTURE_2D, textureID)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_BASE_LEVEL, 0)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0)
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.size[0], image.size[1],
+                 0, GL_RGB, GL_UNSIGNED_BYTE, imageData)
+
+    image.close()
+    return textureID
+
+# Процедура инициализации
 def init():
-    glClearColor(0, 0, 0, 1)
-    glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH)
-    light_diffuse = [ 1.0, 1.0, 1.0, 1.0 ]
-    light_specular = [ 1.0, 1.0, 1.0, 1.0 ]
+    global xrot         # Величина вращения по оси x
+    global yrot         # Величина вращения по оси y
+    global ambient      # Рассеянное освещение
+    global greencolor   # Цвет елочных иголок
+    global treecolor    # Цвет елочного ствола
+    global lightpos     # Положение источника освещения
+    xrot = 0.0                          # Величина вращения по оси x = 0
+    yrot = 0.0                          # Величина вращения по оси y = 0
+    ambient = (1.0, 1.0, 1.0, 1)        # Первые три числа цвет в формате RGB, а последнее - яркость
+    greencolor = (0.2, 0.8, 0.0, 0.8)   # Зеленый цвет для иголок
+    treecolor = (0.9, 0.6, 0.3, 0.8)    # Коричневый цвет для ствола
+    lightpos = (1.0, 1.0, 1.0)          # Положение источника освещения по осям xyz
 
-    #loadTextures();
-
-    glLightfv(GL_LIGHT1, GL_DIFFUSE, light_diffuse)
-    glLightfv(GL_LIGHT1, GL_SPECULAR, light_specular)
-    glLightfv(GL_LIGHT2, GL_DIFFUSE, light_diffuse)
-    glLightfv(GL_LIGHT2, GL_SPECULAR, light_specular)
-    glLightfv(GL_LIGHT3, GL_DIFFUSE, light_diffuse)
-    glLightfv(GL_LIGHT3, GL_SPECULAR, light_specular)
-    glLightfv(GL_LIGHT4, GL_DIFFUSE, light_diffuse)
-    glLightfv(GL_LIGHT5, GL_SPECULAR, light_specular)
-    glLightfv(GL_LIGHT5, GL_DIFFUSE, light_diffuse)
-    glLightfv(GL_LIGHT6, GL_SPECULAR, light_specular)
-    glLightfv(GL_LIGHT6, GL_DIFFUSE, light_diffuse)
-    glLightfv(GL_LIGHT7, GL_SPECULAR, light_specular)
-    glLightfv(GL_LIGHT7, GL_DIFFUSE, light_diffuse)
-
-
-
+    glClearColor(0.5, 0.5, 0.5, 1.0)                # Серый цвет для первоначальной закраски
+    #glRotatef(-90, 1.0, 0.0, 0.0)                   # Сместимся по оси Х на 90 градусов
+    glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambient) # Определяем текущую модель освещения
     glEnable(GL_DEPTH_TEST)
-    glEnable(GL_COLOR_MATERIAL)
-    glEnable(GL_LIGHTING)
-    glEnable(GL_LIGHT0)
+    glEnable(GL_LIGHTING)                           # Включаем освещение
+    glEnable(GL_LIGHT0)                             # Включаем один источник света
+    glLightfv(GL_LIGHT0, GL_POSITION, lightpos)     # Определяем положение источника света
 
 
-def loadTexture(fileName,globvars):
+# Процедура обработки специальных клавиш
+def specialkeys(key, x, y):
+    global xrot
+    global yrot
+    # Обработчики для клавиш со стрелками
+    if key == GLUT_KEY_UP:      # Клавиша вверх
+        xrot -= 2.0             # Уменьшаем угол вращения по оси Х
+    if key == GLUT_KEY_DOWN:    # Клавиша вниз
+        xrot += 2.0             # Увеличиваем угол вращения по оси Х
+    if key == GLUT_KEY_LEFT:    # Клавиша влево
+        yrot -= 2.0             # Уменьшаем угол вращения по оси Y
+    if key == GLUT_KEY_RIGHT:   # Клавиша вправо
+        yrot += 2.0             # Увеличиваем угол вращения по оси Y
 
-    image = Image.open(fileName)
-    width = image.size[0]
-    height = image.size[1]
-    image = image.tostring("raw", "RGBX", 0, -1)
-    texture = glGenTextures(1)
+    glutPostRedisplay()         # Вызываем процедуру перерисовки
 
-    glBindTexture(GL_TEXTURE_2D, texture)  # 2d texture (x and y size)
-    glPixelStorei(GL_UNPACK_ALIGNMENT, 1)
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT)
-    glTexParameterf(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR)
-    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR_MIPMAP_LINEAR)
-    gluBuild2DMipmaps(GL_TEXTURE_2D, 3, width, height, GL_RGBA, GL_UNSIGNED_BYTE, image)
-    globvars.floor_texture_id = texture
-    return texture
-
-def drawFloor(globvars) :
-    glEnable(GL_TEXTURE_2D)
-    glTexEnvf(GL_TEXTURE_ENV, GL_TEXTURE_ENV_MODE, GL_MODULATE)
-    glMaterialfv(GL_FRONT_AND_BACK, GL_AMBIENT, globvars.amb)
-    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, globvars.dif)
-    glBindTexture(GL_TEXTURE_2D, globvars.floor_texture_id)
-
+def draw_polygon():
+    glPushMatrix()
+    glApp
     glBegin(GL_QUADS)
-    glTexCoord2f(0, 0); glNormal3f(0, 0, 1); glVertex3f(-10, -10, 0)
-    glTexCoord2f(0, 1); glNormal3f(0, 0, 1); glVertex3f(-10, 10, 0)
-    glTexCoord2f(1, 1); glNormal3f(0, 0, 1); glVertex3f(10, 10, 0)
-    glTexCoord2f(1, 0); glNormal3f(0, 0, 1); glVertex3f(10, -10, 0)
+    glTexCoord2f(0, 0)
+    glNormal3f(0, 0, 1)
+    glVertex3f(-10, -10, -0.7)
+    glTexCoord2f(0, 1)
+    glNormal3f(0, 0, 1)
+    glVertex3f(-10, 10, -0.7)
+    glTexCoord2f(1, 1)
+    glNormal3f(0, 0, 1)
+    glVertex3f(10, 10, -0.7)
+    glTexCoord2f(1, 0)
+    glNormal3f(0, 0, 1)
+    glVertex3f(10, -10, -0.7)
     glEnd()
+    glPopMatrix()
 
-    glDisable(GL_TEXTURE_2D)
+def draw_tree():
+    glPushMatrix()  # Сохраняем текущее положение "камеры"
+    glLightfv(GL_LIGHT0, GL_POSITION, lightpos)  # Источник света вращаем вместе с елкой
 
-def update(globvars):
+    # Рисуем ствол елки
+    # Устанавливаем материал: рисовать с 2 сторон, рассеянное освещение, коричневый цвет
+    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, treecolor)
+    glTranslatef(0.0, 0.0, -0.7)  # Сдвинемся по оси Z на -0.7
+    # Рисуем цилиндр с радиусом 0.1, высотой 0.2
+    # Последние два числа определяют количество полигонов
+    glutSolidCylinder(0.1, 0.2, 20, 20)
+    # Рисуем ветки елки
+    # Устанавливаем материал: рисовать с 2 сторон, рассеянное освещение, зеленый цвет
+    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, greencolor)
+    glTranslatef(0.0, 0.0, 0.2)  # Сдвинемся по оси Z на 0.2
+    # Рисуем нижние ветки (конус) с радиусом 0.5, высотой 0.5
+    # Последние два числа определяют количество полигонов
+    glutSolidCone(0.5, 0.5, 20, 20)
+    glTranslatef(0.0, 0.0, 0.3)  # Сдвинемся по оси Z на -0.3
+    glutSolidCone(0.4, 0.4, 20, 20)  # Конус с радиусом 0.4, высотой 0.4
+    glTranslatef(0.0, 0.0, 0.3)  # Сдвинемся по оси Z на -0.3
+    glutSolidCone(0.3, 0.3, 20, 20)  # Конус с радиусом 0.3, высотой 0.3
+
+    glPopMatrix()  # Возвращаем сохраненное положение "камеры"
+
+def draw_liberty_snowman():
+    glPushMatrix()
+    glTranslate(-1,1,-0.5)
+    glutSolidSphere(0.25,10,10)
+    glTranslate(0, 0, 0.25)
+    glutSolidSphere(0.15, 10, 10)
+    glTranslate(0, 0, 0.2)
+    glutSolidSphere(0.1, 10, 10)
+    glPopMatrix()
+# Процедура перерисовки
+
+def draw():
+    global xrot
+    global yrot
+    global lightpos
+    global greencolor
+    global treecolor
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
-    glLoadIdentity()
+    glLoadIdentity()  # Очищаем экран и заливаем серым цветом
+    glTranslate(0, 0, -10)
+    glRotate(-60,1,0,0)
+    glRotatef(xrot, 1.0, 0.0, 0.0)  # Вращаем по оси X на величину xrot
+    glRotatef(yrot, 0.0, 1.0, 0.0)  # Вращаем по оси Y на величину yrot
 
-    ang_vert_r = globvars.ang_vert / 180 * 3.1416
-    ang_hor_r = globvars.ang_hor / 180 * 3.1416
-    cam_x = globvars.cam_dist * sin(ang_vert_r) * cos(ang_hor_r)
-    cam_y = globvars.cam_dist * sin(ang_vert_r) * sin(ang_hor_r)
-    cam_z = globvars.cam_dist * cos(ang_vert_r)
-
-    gluLookAt(cam_x, cam_y, cam_z, 0., 0., 0., 0., 0., 1.)
-    drawLamps()
-    drawFloor(globvars)
-	drawCar()
+    draw_polygon()
+    draw_tree()
+    draw_liberty_snowman()
     glFlush()
-    glutSwapBuffers()
+    glutSwapBuffers()                                           # Выводим все нарисованное в памяти на экран
 
+def reshape(w,h):
+    global width,height
+    width = w
+    height = h
 
-def updateCamera(globvars):
+    glViewport(0, 0, w, h)
+    update_camera()
+
+def update_camera():
+    global width,height
     glMatrixMode(GL_PROJECTION)
     glLoadIdentity()
-    gluPerspective(60., globvars.w / globvars.h, 1.0, 1000.)
+    gluPerspective(60,width/height,1,1000)
     glMatrixMode(GL_MODELVIEW)
 
+def main():
+    global floor_texture_id
+    # Здесь начинается выполнение программы
+    # Использовать двойную буферизацию и цвета в формате RGB (Красный, Зеленый, Синий)
+    glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)
+    # Указываем начальный размер окна (ширина, высота)
+    glutInitWindowSize(800, 1000)
+    # Указываем начальное положение окна относительно левого верхнего угла экрана
+    glutInitWindowPosition(50, 50)
+    # Инициализация OpenGl
+    glutInit(sys.argv)
+    # Создаем окно с заголовком "Happy New Year!"
+    glutCreateWindow(b"Happy New Year!")
+    # Определяем процедуру, отвечающую за перерисовку
+    glutDisplayFunc(draw)
+    # Определяем процедуру, отвечающую за обработку клавиш
+    glutSpecialFunc(specialkeys)
+    glutReshapeFunc(reshape)
+    # Вызываем нашу функцию инициализации
+    init()
+    #Загрузка текстуры
+    floor_texture_id = ReadTexture("snowy04.bmp")
+    # Запускаем основной цикл
+    glutMainLoop()
 
+main()
