@@ -7,6 +7,7 @@ from PIL import Image
 import numpy
 
 # Объявляем все глобальные переменные
+global programme_shader
 global floor_texture_id
 global xrot         # Величина вращения по оси x
 global yrot         # Величина вращения по оси y
@@ -15,18 +16,55 @@ global greencolor   # Цвет елочных иголок
 global treecolor    # Цвет елочного стебля
 global lightpos     # Положение источника освещения
 global width,height
-
+global shader_text_loc
+global floor_vertices
+global floor_textures
+#############Shader_Block
 def load_shader_from_file(filename):
     f = open(filename,"r")
     return f.read()
 
+def set_floor_vertices_n_textures():
+    global floor_vertices,floor_textures
+    floor_vertices = [[-10,-10,-0.7],
+                      [-10,10,-0.7],
+                      [10,10,-0.7],
+                      [10,-10,-0.7]]
+    floor_textures = [[0,0],[0,1],[1,1],[1,0]]
+
+def set_texture_params():
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE)
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_EDGE)
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MAG_FILTER,GL_LINEAR)
+    glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_MIN_FILTER,GL_LINEAR)
+
 def create_shader(shader_type, filename):
-    global location_y
     shader = glCreateShader(shader_type)
     glShaderSource(shader, load_shader_from_file(filename))
     glCompileShader(shader)
     return shader
 
+def create_shader_programme(vertex_shader_name,fragment_texture_shader_name):
+    global programme_shader
+    v_shader = create_shader(GL_VERTEX_SHADER,vertex_shader_name)
+    f_shader = create_shader(GL_FRAGMENT_SHADER,fragment_texture_shader_name)
+    programme_shader = glCreateProgram()
+    glAttachShader(programme_shader,v_shader)
+    glAttachShader(programme_shader,f_shader)
+    glLinkProgram(programme_shader)
+    return programme_shader
+
+def initialise_shader_programme():
+    global shader_text_loc,programme_shader
+    programme_shader = create_shader_programme("vertex_shader","fragment_texture_shader")
+    shader_text_loc = glGetUniformLocation(programme_shader ,'texture1')
+    return programme_shader
+
+def free_shaders(program):
+    glUseProgram(0)
+    glDeleteProgram(program)
+
+###########################
 def ReadTexture(filename):
     # PIL can open BMP, EPS, FIG, IM, JPEG, MSP, PCX, PNG, PPM
     # and other file types.  We convert into a texture using GL.
@@ -48,7 +86,6 @@ def ReadTexture(filename):
     glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAX_LEVEL, 0)
     glTexImage2D(GL_TEXTURE_2D, 0, GL_RGB, image.size[0], image.size[1],
                  0, GL_RGB, GL_UNSIGNED_BYTE, imageData)
-
     image.close()
     return textureID
 
@@ -93,23 +130,23 @@ def specialkeys(key, x, y):
     glutPostRedisplay()         # Вызываем процедуру перерисовки
 
 def draw_polygon():
+    global shader_text_loc,floor_texture_id,programme_shader
     glPushMatrix()
-    glApp
-    glBegin(GL_QUADS)
-    glTexCoord2f(0, 0)
-    glNormal3f(0, 0, 1)
-    glVertex3f(-10, -10, -0.7)
-    glTexCoord2f(0, 1)
-    glNormal3f(0, 0, 1)
-    glVertex3f(-10, 10, -0.7)
-    glTexCoord2f(1, 1)
-    glNormal3f(0, 0, 1)
-    glVertex3f(10, 10, -0.7)
-    glTexCoord2f(1, 0)
-    glNormal3f(0, 0, 1)
-    glVertex3f(10, -10, -0.7)
-    glEnd()
+    glUseProgram(programme_shader)
+    glActiveTexture(GL_TEXTURE0)
+    glBindTexture(GL_TEXTURE_2D, floor_texture_id)
+    set_texture_params()
+    glProgramUniform1i(programme_shader,shader_text_loc,0)
+    glEnableClientState(GL_VERTEX_ARRAY)
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+    glVertexPointer(4,GL_FLOAT,0,floor_vertices)
+    glTexCoordPointer(4,GL_FLOAT,0,floor_textures)
+    glDrawArrays(GL_QUADS,0,4)
+    glDisableClientState(GL_VERTEX_ARRAY)
+    glEnableClientState(GL_TEXTURE_COORD_ARRAY)
     glPopMatrix()
+    glGetError()
+    glUseProgram(0)
 
 def draw_tree():
     glPushMatrix()  # Сохраняем текущее положение "камеры"
@@ -182,7 +219,8 @@ def update_camera():
     glMatrixMode(GL_MODELVIEW)
 
 def main():
-    global floor_texture_id
+    global floor_texture_id,programme_shader
+    set_floor_vertices_n_textures()
     # Здесь начинается выполнение программы
     # Использовать двойную буферизацию и цвета в формате RGB (Красный, Зеленый, Синий)
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)
@@ -201,8 +239,10 @@ def main():
     glutReshapeFunc(reshape)
     # Вызываем нашу функцию инициализации
     init()
+
     #Загрузка текстуры
     floor_texture_id = ReadTexture("snowy04.bmp")
+    programme_shader = initialise_shader_programme()
     # Запускаем основной цикл
     glutMainLoop()
 
