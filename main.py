@@ -24,13 +24,7 @@ def load_shader_from_file(filename):
     f = open(filename,"r")
     return f.read()
 
-def set_floor_vertices_n_textures():
-    global floor_vertices,floor_textures
-    floor_vertices = [[-10,-10,-0.7],
-                      [-10,10,-0.7],
-                      [10,10,-0.7],
-                      [10,-10,-0.7]]
-    floor_textures = [[0,0],[0,1],[1,1],[1,0]]
+
 
 def set_texture_params():
     glTexParameteri(GL_TEXTURE_2D,GL_TEXTURE_WRAP_S,GL_CLAMP_TO_EDGE)
@@ -104,13 +98,13 @@ def init():
     treecolor = (0.9, 0.6, 0.3, 0.8)    # Коричневый цвет для ствола
     lightpos = (1.0, 1.0, 1.0)          # Положение источника освещения по осям xyz
 
-    glClearColor(0.5, 0.5, 0.5, 1.0)                # Серый цвет для первоначальной закраски
+    glClearColor(0.0, 0.0, 0.1, 1.0)                # Серый цвет для первоначальной закраски
     #glRotatef(-90, 1.0, 0.0, 0.0)                   # Сместимся по оси Х на 90 градусов
     glLightModelfv(GL_LIGHT_MODEL_AMBIENT, ambient) # Определяем текущую модель освещения
     glEnable(GL_DEPTH_TEST)
     glEnable(GL_LIGHTING)                           # Включаем освещение
     glEnable(GL_LIGHT0)                             # Включаем один источник света
-    glLightfv(GL_LIGHT0, GL_POSITION, lightpos)     # Определяем положение источника света
+    #glLightfv(GL_LIGHT0, GL_POSITION, lightpos)     # Определяем положение источника света
 
 
 # Процедура обработки специальных клавиш
@@ -127,30 +121,38 @@ def specialkeys(key, x, y):
     if key == GLUT_KEY_RIGHT:   # Клавиша вправо
         yrot += 2.0             # Увеличиваем угол вращения по оси Y
 
+
     glutPostRedisplay()         # Вызываем процедуру перерисовки
 
 def draw_polygon():
     global shader_text_loc,floor_texture_id,programme_shader
+   # glUseProgram(programme_shader)
     glPushMatrix()
-    glUseProgram(programme_shader)
-    glActiveTexture(GL_TEXTURE0)
-    glBindTexture(GL_TEXTURE_2D, floor_texture_id)
+    glColor3f(1,1,1)
+    glMaterialfv(GL_FRONT_AND_BACK, GL_DIFFUSE, [1,1,1])
+#    glUniform1i(shader_text_loc,0)
     set_texture_params()
-    glProgramUniform1i(programme_shader,shader_text_loc,0)
-    glEnableClientState(GL_VERTEX_ARRAY)
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY)
-    glVertexPointer(4,GL_FLOAT,0,floor_vertices)
-    glTexCoordPointer(4,GL_FLOAT,0,floor_textures)
-    glDrawArrays(GL_QUADS,0,4)
-    glDisableClientState(GL_VERTEX_ARRAY)
-    glEnableClientState(GL_TEXTURE_COORD_ARRAY)
+    glBegin(GL_QUADS)
+    glNormal3f(0, 0, 1)
+    glTexCoord(0,0)
+    glVertex3f(-10, -10, -0.7)
+    glNormal3f(0, 0, 1)
+    glTexCoord(0,1)
+    glVertex3f(-10, 10, -0.7)
+    glNormal3f(0, 0, 1)
+    glTexCoord(1,1)
+    glVertex3f(10, 10, -0.7)
+    glNormal3f(0, 0, 1)
+    glTexCoord(1,0)
+    glVertex3f(10, -10, -0.7)
+    glEnd()
+   # glUseProgram(0)
     glPopMatrix()
-    glGetError()
-    glUseProgram(0)
+
 
 def draw_tree():
     glPushMatrix()  # Сохраняем текущее положение "камеры"
-    glLightfv(GL_LIGHT0, GL_POSITION, lightpos)  # Источник света вращаем вместе с елкой
+    #glLightfv(GL_LIGHT0, GL_POSITION, lightpos)  # Источник света вращаем вместе с елкой
 
     # Рисуем ствол елки
     # Устанавливаем материал: рисовать с 2 сторон, рассеянное освещение, коричневый цвет
@@ -175,6 +177,7 @@ def draw_tree():
 
 def draw_liberty_snowman():
     glPushMatrix()
+    glColor3f(1,1,1)
     glTranslate(-1,1,-0.5)
     glutSolidSphere(0.25,10,10)
     glTranslate(0, 0, 0.25)
@@ -194,8 +197,8 @@ def draw():
     glLoadIdentity()  # Очищаем экран и заливаем серым цветом
     glTranslate(0, 0, -10)
     glRotate(-60,1,0,0)
-    glRotatef(xrot, 1.0, 0.0, 0.0)  # Вращаем по оси X на величину xrot
-    glRotatef(yrot, 0.0, 1.0, 0.0)  # Вращаем по оси Y на величину yrot
+    glRotatef(xrot, 0.0, 0.0, 1.0)  # Вращаем по оси X на величину xrot
+    #glRotatef(yrot, 0.0, 1.0, 0.0)  # Вращаем по оси Y на величину yrot
 
     draw_polygon()
     draw_tree()
@@ -220,7 +223,7 @@ def update_camera():
 
 def main():
     global floor_texture_id,programme_shader
-    set_floor_vertices_n_textures()
+
     # Здесь начинается выполнение программы
     # Использовать двойную буферизацию и цвета в формате RGB (Красный, Зеленый, Синий)
     glutInitDisplayMode(GLUT_DOUBLE | GLUT_RGB | GLUT_DEPTH)
@@ -241,7 +244,6 @@ def main():
     init()
 
     #Загрузка текстуры
-    floor_texture_id = ReadTexture("snowy04.bmp")
     programme_shader = initialise_shader_programme()
     # Запускаем основной цикл
     glutMainLoop()
