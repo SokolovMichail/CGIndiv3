@@ -26,11 +26,11 @@ light_snowman_matrix = None
 #LIGHTS
 lights_positions = [
     (-0.5, 0.25, -0.5),
-    (0.0,0.0,0.0)#A light for the snowman
+    (-0.2,0.48,0.0)#A light for the tree
 ]
 lights_colors = [
-    (1, 1, 1),
-    (0, 1, 0)
+    (0, 0, 0),
+    (1, 1, 0)
 ]
 lights_specular_colors = lights_colors
 lights_specular_intensities = [1,1]
@@ -84,14 +84,16 @@ def render():
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
     glEnable(GL_DEPTH_TEST)
     glUseProgram(curr_shader_program)
-
     glMatrixMode(GL_MODELVIEW)
     glLoadIdentity()
 
     handle_camera()
     draw_terrain()
-    #draw_lamps()
     glTranslate(-0.2, 0, 0)
+    glPushMatrix()
+    glTranslate(0,0.0,0.48)
+    glutWireSphere(0.02,10,10)
+    glPopMatrix()
     draw_tree()
     glTranslate(0.4, 0, 0)
     draw_liberty_snowman()
@@ -202,13 +204,7 @@ def draw_liberty_snowman():
     glutSolidCylinder(0.01, 0.5, 20, 20)
     glRotate(-45, 1, 0, 0)
     glTranslate(0,-0.32,0.4)
-    glutWireSphere(0.1,5,5)
-    global light_snowman_matrix, lights_positions
-    light_snowman_matrix = numpy.array(glGetFloat(GL_MODELVIEW_MATRIX)).reshape(4, 4)
-    tmp_res = numpy.dot(light_snowman_matrix,[1,0,0,1])
-    #print(tmp_res[1])
-    lights_positions[1] = (tmp_res[0],tmp_res[1],tmp_res[2])
-    #print(lights_positions)
+    glutSolidSphere(0.1,5,5)
     glPopMatrix()
 
 def keyboard(key, x, y):
