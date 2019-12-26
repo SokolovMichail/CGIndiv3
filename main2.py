@@ -78,7 +78,7 @@ def create_shader_programme(vertex_shader_name,fragment_texture_shader_name):
 
 def init_shaders():
     global curr_shader_program
-    curr_shader_program = create_shader_programme(f'{curr_shader}_vertex.glsl',f'{curr_shader}_fragment.glsl')
+    curr_shader_program = create_shader_programme(f'{curr_shader},v',f'{curr_shader}.f')
 
 def render():
     glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT)
